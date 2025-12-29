@@ -1,45 +1,28 @@
-FROM ubuntu:22.04
+# Use the official Rust image (Debian-based)
+FROM rust:latest
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# ---------------------------------------------------------
-# System dependencies
-# ---------------------------------------------------------
+# Install system dependencies required by c2rust
+# c2rust requires clang and llvm-dev
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
+    llvm \
+    clang \
+    libclang-dev \
     cmake \
-    git \
-    libffi-dev \
-    libxml2-dev \
-    zlib1g-dev \
-    libtinfo-dev \
+    python3 \
+    python3-pip \
+    libssl-dev \
     pkg-config
 
-# ---------------------------------------------------------
-# LLVM 17 for ARM64 (Apple Silicon Docker)
-# ---------------------------------------------------------
-RUN curl -LO https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-aarch64-linux-gnu.tar.xz && \
-    tar -xf clang+llvm-17.0.6-aarch64-linux-gnu.tar.xz && \
-    mv clang+llvm-17.0.6-aarch64-linux-gnu /opt/llvm && \
-    rm clang+llvm-17.0.6-aarch64-linux-gnu.tar.xz
+# Install compiledb to help generate compile_commands.json inside the container
+RUN pip3 install compiledb --break-system-packages
 
-ENV LLVM_HOME=/opt/llvm
-ENV PATH="$LLVM_HOME/bin:${PATH}"
-ENV LD_LIBRARY_PATH="$LLVM_HOME/lib:${LD_LIBRARY_PATH}"
-
-# Required for clang-sys
-ENV LLVM_SYS_170_PREFIX=/opt/llvm
-
-# ---------------------------------------------------------
-# Install Rust
-# ---------------------------------------------------------
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# ---------------------------------------------------------
 # Install c2rust
-# ---------------------------------------------------------
+# We link the LLVM configuration so c2rust can find the system libraries
+ENV LLVM_CONFIG_PATH=/usr/bin/llvm-config
 RUN cargo install c2rust
 
-WORKDIR /src
+# Set the working directory
+WORKDIR /app
+
+# Default command
+CMD ["/bin/bash"]
